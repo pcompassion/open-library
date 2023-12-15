@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Callable, Awaitable
 import logging
 import websockets
 
-from risk_glass.ebest.openapi.log_utils import WebsocketLoggingFilter
+from open_library.logging.logging_filter import WebsocketLoggingFilter
 
 
 ws_logger = logging.getLogger("websockets.client")

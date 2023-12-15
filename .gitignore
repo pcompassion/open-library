@@ -1,0 +1,12 @@
+.DS_Store
+.idea
+*.log
+tmp/
+.env
+*.pyc
+.ipynb_checkpoints/
+**/settings/local.py
+.env.*
+**/logs
+**/.ob-jupyter
+.vscode

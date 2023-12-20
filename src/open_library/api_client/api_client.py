@@ -28,11 +28,15 @@ class TokenManager:
         self.access_token: Optional[str] = None
         self.refresh_deadline: datetime = datetime.utcnow()
         self.expiry_time: datetime = datetime.utcnow()
+        self.task = None
 
+    def start_refresh_task(self):
         PERIOD_CHECK_MIN = 60  # 1 hour
-        self.task = asyncio.create_task(
-            periodic_wrapper(60 * PERIOD_CHECK_MIN, self.refresh_token)
-        )
+
+        if self.task is None:
+            self.task = asyncio.create_task(
+                periodic_wrapper(60 * PERIOD_CHECK_MIN, self.refresh_token)
+            )
 
     async def get_access_token(self) -> Optional[str]:
         if self.is_near_expiration():
@@ -71,7 +75,8 @@ class TokenManager:
 
     def stop_refreshing(self) -> None:
         # Call this method when you want to stop the automatic token refreshing.
-        self.task.cancel()
+        if self.task:
+            self.task.cancel()
 
     def is_near_expiration(self, threashold=300) -> bool:
         if self.access_token is None:

@@ -3,6 +3,6 @@
 from enum import Enum, auto
 
 
-class Environment(str, Enum):
+class Env(str, Enum):
     DEV = "dev"
     PROD = "prod"

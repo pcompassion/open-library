@@ -16,6 +16,7 @@ class TimeUnit(str, Enum):
 class TimeFrame(Enum):
     SECOND_1 = timedelta(seconds=1)
     SECOND_5 = timedelta(seconds=5)
+    SECOND_10 = timedelta(seconds=10)
 
     SECOND_30 = timedelta(seconds=30)
 

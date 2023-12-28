@@ -21,4 +21,4 @@ class BaseApp:
         )
 
     def now(self):
-        return pendulum.now(tz=self.environment.local_timezone)
+        return pendulum.now()

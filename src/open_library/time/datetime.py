@@ -2,6 +2,10 @@
 import pendulum
 
 
+def now_local():
+    return pendulum.now(tz=pendulum.local_timezone())
+
+
 # Function to determine the date based on the time and base_date
 def determine_datetime(time_str, base_datetime, time_format):
     hour = int(time_str[:2])

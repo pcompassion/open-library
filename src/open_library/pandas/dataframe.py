@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from asgiref.sync import sync_to_async
+from typing import Any
 import pandas as pd
 
 from django.db.models.query import QuerySet
@@ -16,7 +18,9 @@ def serialize_row(row):
     return serialized_row
 
 
-def read_frame(qs: QuerySet, field_names: list = None) -> pd.DataFrame:
+async def read_frame(
+    qs: QuerySet[Any], field_names: list | None = None
+) -> pd.DataFrame:
     """
     Read a QuerySet into a pandas DataFrame
     :param qs: QuerySet
@@ -26,5 +30,8 @@ def read_frame(qs: QuerySet, field_names: list = None) -> pd.DataFrame:
     if field_names is None:
         field_names = [f.name for f in qs.model._meta.fields]
 
-    df = pd.DataFrame.from_records(qs.values_list(*field_names), columns=field_names)
+    async_values_list = sync_to_async(lambda: list(qs.values_list(*field_names)))
+    data = await async_values_list()
+
+    df = pd.DataFrame.from_records(data, columns=field_names)
     return df

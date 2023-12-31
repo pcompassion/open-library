@@ -10,10 +10,10 @@ import pendulum
 
 
 class Environment:
-    def __init__(self, env_directory: str = "", env_file: str = ".env") -> None:
+    def __init__(self, env_directory: Path = Path(), env_file: str = ".env") -> None:
         self.env_file = env_file
         self.directory = env_directory
-        self.cur_directory = Path(os.getcwd())
+        self.cur_directory = Path()  # os.getcwd()
 
         base_dir = Path(self.directory or self.cur_directory).resolve()
 

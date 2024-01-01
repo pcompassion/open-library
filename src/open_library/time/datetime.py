@@ -29,5 +29,7 @@ def determine_datetime(time_str, base_datetime, time_format):
 
 
 def combine(date, time):
-    datetime = pendulum.DateTime.combine(date, time)
+    datetime = pendulum.DateTime.combine(date, time).astimezone(
+        tz=pendulum.local_timezone()
+    )
     return datetime

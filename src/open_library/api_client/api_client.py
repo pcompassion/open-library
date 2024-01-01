@@ -65,7 +65,10 @@ class TokenManager:
         data: Dict[str, Any] = response.json()
 
         new_token = data["access_token"]
-        logger.info(f"new_token: {new_token}")
+
+        logger.info(
+            f"new_token: {new_token}, self: {id(self)}, client: {self.client_id}"
+        )
 
         if self.access_token != data["access_token"]:
             logger.info(f"I have renewed token: {self.access_token}, new: {new_token}")

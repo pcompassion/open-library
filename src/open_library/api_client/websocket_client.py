@@ -70,7 +70,8 @@ class WebSocketClient:
 
                 try:
                     message = await self.websocket.recv()
-                    await handler(message)
+                    response = json.loads(message)
+                    await handler(response)
                 except (websockets.ConnectionClosed, websockets.ConnectionClosedError):
                     logger.info("receive calling _connect")
 

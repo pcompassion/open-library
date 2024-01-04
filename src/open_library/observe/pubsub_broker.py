@@ -6,14 +6,14 @@ import asyncio
 
 class PubsubBroker:
     def __init__(self):
-        self.subscribers: dict[str, list] = {}
+        self.subscribers: dict[str, set] = {}
         self.queue = asyncio.Queue()
         self.running = False
 
     def subscribe(self, key: str, listener):
         if key not in self.subscribers:
-            self.subscribers[key] = []
-        self.subscribers[key].append(listener)
+            self.subscribers[key] = set()
+        self.subscribers[key].add(listener)
 
     def unsubscribe(self, key: str, listener):
         if key in self.subscribers:

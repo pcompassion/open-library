@@ -23,6 +23,10 @@ async def periodic_wrapper(interval: float, coro_func, *args, **kwargs):
 def wrap_func_in_coro(func: Callable[..., Any]):
     """wrap in a coroutine"""
 
+    # If func is already a coroutine or coroutine function, return it as-is
+    if asyncio.iscoroutine(func) or asyncio.iscoroutinefunction(func):
+        return func
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)

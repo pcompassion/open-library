@@ -50,5 +50,11 @@ async def as_list_type(
         if isinstance(data, pd.DataFrame):
             return data
         return await read_frame(data, field_names=field_names)
+    elif data_type == ListDataType.List:
+        if isinstance(data, list):
+            return data
+        elif isinstance(data, QuerySet[Any]):
+            qs = data
+            return await sync_to_async(list)(qs)
 
     raise ValueError("Invalid data type specified.")

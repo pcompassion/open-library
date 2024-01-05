@@ -11,6 +11,7 @@ from open_library.logging.logging_filter import WebsocketLoggingFilter
 
 ws_logger = logging.getLogger("websockets.client")
 logger = logging.getLogger(__name__)
+ws_logger.setLevel(logging.WARNING)
 
 
 class CustomWebSocketClient(websockets.WebSocketClientProtocol):

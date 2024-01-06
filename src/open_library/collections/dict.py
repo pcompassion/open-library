@@ -34,6 +34,10 @@ def rename_keys(original_dict, key_mapping):
     return new_dict
 
 
+def filter_dict(original_dict, keys_to_include):
+    return {key: original_dict[key] for key in keys_to_include if key in original_dict}
+
+
 def serialize(dictionary):
     # from pydantic.json_schema import to_jsonable_python
     from pydantic_core import to_json

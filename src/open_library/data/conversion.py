@@ -44,7 +44,7 @@ async def as_list_type(
         elif isinstance(data, pd.DataFrame):
             return data.to_dict(orient="records")
         elif isinstance(data, list):
-            if any(isinstance(item, dict) for item in data):
+            if not data or any(isinstance(item, dict) for item in data):
                 return data
     elif data_type == ListDataType.Dataframe:
         if isinstance(data, pd.DataFrame):

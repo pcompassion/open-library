@@ -64,7 +64,10 @@ class TokenManager:
         )
         data: Dict[str, Any] = response.json()
 
-        new_token = data["access_token"]
+        new_token = data.get("access_token", None)
+        if new_token is None:
+            logger.warning(f"no new token: {data}")
+            raise Exception(f"no new token: {data}")
 
         logger.info(
             f"new_token: {new_token}, self: {id(self)}, client: {self.client_id}"

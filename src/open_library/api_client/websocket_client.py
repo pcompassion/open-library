@@ -70,18 +70,23 @@ class WebSocketClient:
                     await self._connect()
 
                 try:
+                    logging.info("Waiting for message")
                     message = await self.websocket.recv()
+                    logging.info(f"Message received: {message}")
+
                     response = json.loads(message)
                     await handler(response)
                 except (websockets.ConnectionClosed, websockets.ConnectionClosedError):
-                    logger.info("receive calling _connect")
-
+                    logger.info("Connection closed, calling _connect")
                     await self._connect()
+                except Exception as e:
+                    logger.exception(f"An error occurred in receive: {e}")
 
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as e:
             logger.info("receive got CancelledError")
-
             return
+        except Exception as e:
+            logger.exception(f"An unexpected error occurred in receive: {e}")
 
     async def send(self, body):
         access_token = await self.token_manager.get_access_token()

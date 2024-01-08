@@ -1,0 +1,453 @@
+#+title: Observer
+
+* plan
+
+i want to model attribute based one.
+
+where i have
+
+event_listener_key: a key to find listener
+event_param1: val | list[val] | * (any val)
+event_param2: val | list[val] | *
+..
+
+and i want to allow client to use their own name for event param name (dont wanna force them to use event_param1, ..)
+
+so, for example
+
+
+** example
+
+*** subscribe quote
+event_listner_key: ServiceKey({service_type: Callable, listner: self.listen_quote})
+
+event_spec: {
+    spec_name: quote,
+    security_code: amazon
+}
+
+class QuoteEventSpec(BaseModel):
+    spec_name: str = "quote",
+    security_code: str | None,
+    security_type: SecurityType | list[SecurityType] | None
+
+
+class CandleEventSpec(BaseModel):
+    spec_name: str = "candle",
+    security_code: str | None,
+    security_type: SecurityType | list[SecurityType] | None
+
+
+*** publish quote
+
+assuming we have event, which we can determine spec_name, and parameters appropriate for the spec
+
+event : QuoteEventSpec = QuoteEventSpec(**{spec_name:quote, security_code: 'amazon'})
+
+for event_listener_key, event_spec_filter in listeners:
+    listener = get_listener(event_listener_key)
+
+    if event matches event_spec_filter
+        listener.notify(event)
+
+*** subscribe Fill or cancel
+
+event_listener_key: ServiceKey({service_type: pubsub_broker, service_name: order_event_broker})
+
+event_spec: {
+    spec_name: order,
+    order_id: 344,
+    event_name: [OrderEvent.Fill, OrderEvent.Cancel]
+}
+
+class OrderEventSpec(BaseModel):
+    spec_name: str = "order"
+    order_id: str,
+    event_name: OrderEventName | list[OrderEventName] | None = None
+
+
+*** subscribe all for order
+event_listener_key: ServiceKey({service_type: pubsub_broker, service_name: order_event_broker})
+
+event_spec: {
+    spec_name: order,
+    order_id: 344,
+}
+
+* update
+
+class EventSpecValue(Generic[T], BaseModel):
+    prefix: str | None = None
+    anything_but: T | list[T] | None
+
+
+
+class QuoteEventSpec(BaseModel):
+    spec_name: str = "quote",
+    security_code: str | None | EventSpecValue[str],
+    security_type: SecurityType | list[SecurityType] | None
+
+
+
+event : QuoteEventSpec = QuoteEventSpec(**{spec_name:quote, security_code: EventSpecValue(prefix="101")})
+
+for event_listener_key, event_spec_filter in listeners:
+    listener = get_listener(event_listener_key)
+
+    if event matches event_spec_filter
+        listener.notify(event)
+
+* usage api
+** subscribe
+some_serive_or_manager.subscribe(
+    ServiceKey({service_type: Callable, listner: self.listen_quote}),
+    event_spec=QuoteEventSpec(**{
+        spec_name: quote,
+        security_code: amazon
+    })
+)
+
+some_serive_or_manager.subscribe(
+    ServiceKey({service_type: Callable, listner: self.listen_quote}),
+    event_spec=QuoteEventSpec(**{
+        spec_name: quote,
+        security_code: google
+    })
+)
+
+** def subscribe
+
+def subscribe(service_key, event_spec):
+
+    if event_spec not in self.subscriptions:
+        self.subscriptions[event_spec] = []
+
+    if service_key not in self.subscriptions[event_spec]:
+        self.subscriptions[event_spec].append(service_key)
+
+** def publish
+
+def publish(event_spec):
+
+    # need to get service_keys by event_spec, but it might not be exact match, we need to support attribute match
+
+    # maybe use trie ?
+    target_event_specs = self.get_matching_event_specs(event_spec)
+
+
+
+
+
+
+
+
+ok.. i've updated the requirement,
+
+let's focus on the datastructure to support the match of two event_specs
+
+
+* update
+
+class EventSpecValue(Generic[T], BaseModel):
+    prefix: str | None = None
+    anything_but: T | list[T] | None
+
+
+
+class QuoteEventSpec(BaseModel):
+    spec_name: str = "quote",
+    security_code: str | None | EventSpecValue[str],
+    security_type: SecurityType | list[SecurityType] | None
+
+
+
+event : QuoteEventSpec = QuoteEventSpec(**{spec_name:quote, security_code: EventSpecValue(prefix="101")})
+
+for event_listener_key, event_spec_filter in listeners:
+    listener = get_listener(event_listener_key)
+
+    if event matches event_spec_filter
+        listener.notify(event)
+
+* usage api
+** subscribe
+some_serive_or_manager.subscribe(
+    ServiceKey({service_type: Callable, listner: self.listen_quote}),
+    event_spec=QuoteEventSpec(**{
+        spec_name: quote,
+        security_code: amazon
+    })
+)
+
+some_serive_or_manager.subscribe(
+    ServiceKey({service_type: Callable, listner: self.listen_quote}),
+    event_spec=QuoteEventSpec(**{
+        spec_name: quote,
+        security_code: google
+    })
+)
+
+** def subscribe
+
+def subscribe(service_key, event_spec):
+
+    if event_spec not in self.subscriptions:
+        self.subscriptions[event_spec] = []
+
+    if service_key not in self.subscriptions[event_spec]:
+        self.subscriptions[event_spec].append(service_key)
+
+** def publish
+
+def publish(event_spec):
+
+    # need to get service_keys by event_spec, but it might not be exact match, we need to support attribute match
+
+    # maybe use trie ?
+    target_event_specs = self.get_matching_event_specs(event_spec)
+
+* possible datastructure for matching event specs
+
+i would do something like this..
+
+create a dictionary where we store target event specs,
+where each attribute is a key in a dictionary, and value of the key is a list ,which we could use to construct the target event spec
+
+eg, if we store hash of target_event_spec
+
+for source_event_spec,
+
+we gather all hash of target_event_spec by visiting attribute leaf node of the target event spec dictionary
+
+so with the hash, we could get possible match of target event specs
+
+then we do more sophiscated match on these subsets,
+i.e test if all the target event spec has been satisfied by source target event spec
+
+
+#+begin_src jupyter-python
+class SubscriptionManager:
+    def __init__(self):
+        self.subscriptions = {}
+
+    def subscribe(self, service_key: ServiceKey, event_spec: EventSpec):
+        self._add_to_subscriptions(self.subscriptions, event_spec.dict(), service_key)
+
+    def _add_to_subscriptions(self, current_level, attributes, service_key, depth=0):
+        if depth == len(attributes):
+            current_level.setdefault("service_keys", set()).add(service_key)
+            return
+
+        attribute, value = list(attributes.items())[depth]
+        if attribute not in current_level:
+            current_level[attribute] = {}
+
+        if isinstance(value, EventSpecValue):
+            # Handle EventSpecValue specific logic here
+            pass
+        else:
+            if value not in current_level[attribute]:
+                current_level[attribute][value] = {}
+            self._add_to_subscriptions(current_level[attribute][value], attributes, service_key, depth + 1)
+
+    def get_matching_event_specs(self, source_event_spec: EventSpec):
+        return self._find_matching_event_specs(self.subscriptions, source_event_spec.dict())
+
+    def _find_matching_event_specs(self, current_level, attributes, depth=0):
+        if depth == len(attributes):
+            return current_level.get("service_keys", set())
+
+        attribute, value = list(attributes.items())[depth]
+        matching_service_keys = set()
+
+        if attribute in current_level:
+            if value in current_level[attribute]:
+                matching_service_keys.update(self._find_matching_event_specs(current_level[attribute][value], attributes, depth + 1))
+
+        # Add logic to handle EventSpecValue matching, wildcards, etc.
+
+        return matching_service_keys
+
+
+class SubscriptionManager:
+    # ... [existing methods] ...
+
+    def _find_matching_event_specs(self, current_level, attributes, depth=0):
+        if depth == len(attributes):
+            # At the deepest level, return the service keys
+            return current_level.get("service_keys", set())
+
+        attribute, value = list(attributes.items())[depth]
+        matching_service_keys = set()
+
+        if attribute in current_level:
+            attr_level = current_level[attribute]
+
+            # Check for exact match
+            if value in attr_level:
+                matching_service_keys.update(self._find_matching_event_specs(attr_level[value], attributes, depth + 1))
+
+            # Add additional logic here for handling prefix, anything_but, etc.
+
+        return matching_service_keys
+
+    def get_matching_service_keys(self, source_event_spec: EventSpec):
+        potential_keys = self.get_matching_event_specs(source_event_spec)
+        final_keys = set()
+
+        for key in potential_keys:
+            # Validate that all conditions in the target spec are met by the source spec
+            if self._all_conditions_met(key, source_event_spec):
+                final_keys.add(key)
+
+        return final_keys
+
+    def _all_conditions_met(self, service_key, source_event_spec):
+        target_event_spec = self._retrieve_event_spec_by_key(service_key)
+        for attribute in target_event_spec.dict():
+            if not self._attribute_matches(source_event_spec, target_event_spec, attribute):
+                return False
+        return True
+
+    def _attribute_matches(self, source_spec, target_spec, attribute):
+        # Implement logic to compare the attribute of source_spec and target_spec
+        # This should handle direct matches, prefixes, anything_but, etc.
+        pass
+
+    def _retrieve_event_spec_by_key(self, service_key):
+        # Implement logic to retrieve the target event spec based on service_key
+        pass
+
+
+#+end_src
+#+begin_src jupyter-python
+class SubscriptionManager:
+    def __init__(self):
+        self.subscriptions = {}  # Map of attribute values to event specs
+
+    def subscribe(self, event_spec: EventSpec):
+        self._add_to_subscriptions(self.subscriptions, event_spec.dict(), event_spec)
+
+    def _add_to_subscriptions(self, current_level, attributes, event_spec, depth=0):
+        if depth == len(attributes):
+            current_level.setdefault("event_specs", set()).add(event_spec)
+            return
+
+        attribute, value = list(attributes.items())[depth]
+        if attribute not in current_level:
+            current_level[attribute] = {}
+
+        if isinstance(value, EventSpecValue):
+            # Handle EventSpecValue specific logic here
+            pass
+        else:
+            if value not in current_level[attribute]:
+                current_level[attribute][value] = {}
+            self._add_to_subscriptions(current_level[attribute][value], attributes, event_spec, depth + 1)
+
+    def get_matching_event_specs(self, source_event_spec: EventSpec):
+        return self._find_matching_event_specs(self.subscriptions, source_event_spec.dict())
+
+    def _find_matching_event_specs(self, current_level, attributes, depth=0):
+        if depth == len(attributes):
+            return current_level.get("event_specs", set())
+
+        attribute, value = list(attributes.items())[depth]
+        matching_event_specs = set()
+
+        if attribute in current_level:
+            attr_level = current_level[attribute]
+
+            # Check for exact match
+            if value in attr_level:
+                matching_event_specs.update(self._find_matching_event_specs(attr_level[value], attributes, depth + 1))
+
+            # Add additional logic here for handling prefix, anything_but, etc.
+
+        return matching_event_specs
+
+#+end_src
+
+* plan
+
+upon two spec registration
+
+event_spec1 = {
+k1: {k12: v12},
+k2: v2
+}
+
+event_spec2 = {
+k2: v2
+}
+
+we create dictionary
+{k1:
+{k12: {v12: [event_spec1]}},
+k2: {v2: [event_spec1, event_spec2]}
+}
+
+source_event_spec = {k2: v2}
+
+upon visiting k2: v2 in the dictionary, we find [event_spec1, event_spec2]
+
+and we mark event_spec1 and event_spec2 's k2 attribute is found
+
+and since event_spec1 is not fully met (k12: v12 is not satisfied),
+but event_spec2 is is fully met, we can return event_spec2 as matched event_spec
+
+
+
+#+begin_src jupyter-python
+class SubscriptionManager:
+    def __init__(self):
+        self.subscriptions = {}  # Nested dictionary for subscriptions
+        self.specs_matching_progress = {}  # Track matching progress for each spec
+
+    def subscribe(self, event_spec: EventSpec):
+        self._add_spec_to_subscriptions(self.subscriptions, event_spec.dict(), event_spec)
+
+    def _add_spec_to_subscriptions(self, current_level, attributes, event_spec, prefix=''):
+        for key, value in attributes.items():
+            new_prefix = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                # Handle nested dict
+                if key not in current_level:
+                    current_level[key] = {}
+                self._add_spec_to_subscriptions(current_level[key], value, event_spec, new_prefix)
+            else:
+                # Handle direct value
+                if key not in current_level:
+                    current_level[key] = {}
+                if value not in current_level[key]:
+                    current_level[key][value] = []
+                current_level[key][value].append(event_spec)
+                # Initialize matching progress for the spec
+                self.specs_matching_progress[event_spec][new_prefix] = False
+
+    def publish(self, source_event_spec: EventSpec):
+        self._find_and_notify_matching_specs(self.subscriptions, source_event_spec.dict())
+
+    def _find_and_notify_matching_specs(self, current_level, attributes, prefix=''):
+        for key, value in attributes.items():
+            new_prefix = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                # Handle nested dict
+                if key in current_level:
+                    self._find_and_notify_matching_specs(current_level[key], value, new_prefix)
+            else:
+                # Direct value match
+                if key in current_level and value in current_level[key]:
+                    for spec in current_level[key][value]:
+                        self.specs_matching_progress[spec][new_prefix] = True
+                        if self._is_spec_fully_matched(spec):
+                            self.notify_listeners(spec, source_event_spec)
+
+    def _is_spec_fully_matched(self, event_spec: EventSpec):
+        return all(self.specs_matching_progress[event_spec].values())
+
+    def notify_listeners(self, target_spec: EventSpec, event: EventSpec):
+        # Implement notification logic
+        pass
+
+#+end_src

@@ -34,7 +34,13 @@ ws_logger.addFilter(ws_filter)
 
 class WebSocketClient:
     def __init__(
-        self, uri, headers, token_manager, max_retries=-1, initial_delay=1, max_delay=30
+        self,
+        uri,
+        token_manager,
+        topic_extractor,
+        max_retries=-1,
+        initial_delay=1,
+        max_delay=30,
     ):
         self.uri = uri
         self.websocket = None
@@ -43,8 +49,8 @@ class WebSocketClient:
         self.initial_delay = initial_delay
         self.max_delay = max_delay
         self.token_manager = token_manager
-        self.headers = headers
         self.subscriptions = {}
+        self.topic_extractor = topic_extractor  # Function to extract topic from message
 
     async def _connect(self):
         while self.retry_count != self.max_retries:
@@ -63,19 +69,73 @@ class WebSocketClient:
 
         raise ConnectionRefusedError("Maximum retry count reached")
 
-    async def receive(self, handler):
+    async def send(self, header, body):
+        header = header or {}
+        body = body or {}
+        access_token = await self.token_manager.get_access_token()
+
+        header_updated = dict(token=access_token) | header
+
+        payload = {"header": header_updated, "body": body}
+
+        if self.websocket is None or not self.websocket.open:
+            await self._connect()
+
+        await self.websocket.send(json.dumps(payload))
+
+    async def subscribe(
+        self,
+        topic_key,
+        handler: Callable,
+        header: dict[str, str] | None = None,
+        body: dict[str, str] | None = None,
+    ):
+        # If the topic doesn't exist, create a list for handlers
+        if topic_key not in self.subscriptions:
+            self.subscriptions[topic_key] = []
+
+        # Add the handler to the list of handlers for this topic
+        if handler not in self.subscriptions[topic_key]:
+            self.subscriptions[topic_key].append(handler)
+
+        # Start the receive loop if not already running for this topic
+        if len(self.subscriptions[topic_key]) == 1:
+            # Send a message to subscribe to the topic
+            await self.send(header, body)
+
+    async def unsubscribe(
+        self,
+        topic_key,
+        handler: Callable,
+        header: dict[str, str] | None = None,
+        body: dict[str, str] | None = None,
+    ):
+        # Remove the handler from the list of handlers for this topic
+        if topic_key in self.subscriptions:
+            try:
+                self.subscriptions[topic_key].remove(handler)
+            except ValueError:
+                logger.info("Handler not found in the subscription list")
+
+            # If there are no more handlers, cancel the receive task
+            if not self.subscriptions[topic_key]:
+                await self.send(header, body)
+
+    async def receive(self):
         try:
             while True:
                 if self.websocket is None or not self.websocket.open:
                     await self._connect()
 
                 try:
-                    logging.info("Waiting for message")
                     message = await self.websocket.recv()
                     logging.info(f"Message received: {message}")
 
                     response = json.loads(message)
-                    await handler(response)
+                    topic_key = self.topic_extractor(response)
+                    handlers = self.subscriptions.get(topic_key, [])
+                    for handler in handlers:
+                        await handler(response)
                 except (websockets.ConnectionClosed, websockets.ConnectionClosedError):
                     logger.info("Connection closed, calling _connect")
                     await self._connect()
@@ -84,40 +144,8 @@ class WebSocketClient:
 
         except asyncio.CancelledError as e:
             logger.info("receive got CancelledError")
-            return
         except Exception as e:
             logger.exception(f"An unexpected error occurred in receive: {e}")
-
-    async def send(self, body):
-        access_token = await self.token_manager.get_access_token()
-        self.headers["token"] = access_token
-
-        payload = {"header": self.headers, "body": body}
-
-        if self.websocket is None or not self.websocket.open:
-            await self._connect()
-
-        await self.websocket.send(json.dumps(payload))
-
-    async def subscribe(self, body: Dict[str, str], topic_key: tuple, handler=None):
-        # Send a message to subscribe to the topic.
-
-        await self.send(body)
-
-        # If not already receiving, start the loop.
-        if topic_key not in self.subscriptions:
-            self.subscriptions[topic_key] = asyncio.create_task(self.receive(handler))
-
-    async def unsubscribe(self, topic_key):
-        task = self.subscriptions.pop(topic_key, None)
-        if task:
-            logger.info("cancelling task")
-            task.cancel()
-            try:
-                # Wait for the task to be cancelled.
-                await task
-            finally:
-                pass
 
     async def close(self):
         topic_keys = list(self.subscriptions.keys())

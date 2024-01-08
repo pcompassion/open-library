@@ -33,3 +33,8 @@ def combine(date, time):
         tz=pendulum.local_timezone()
     )
     return datetime
+
+
+def time_from_format(time_str, time_format):
+    time = pendulum.from_format(time_str, time_format).time()
+    return time

@@ -1,0 +1,53 @@
+from pydantic import BaseModel
+import operator
+import functools
+
+from dataclasses import dataclass
+from collections import defaultdict
+from typing import Protocol
+
+
+
+
+class EventSpec(BaseSpec):
+
+    pass
+
+
+class QuoteEventSpec(EventSpec):
+    spec_type_name: str = "quote",
+    security_code: str | None,
+    security_type: SecurityType | list[SecurityType] | None
+
+    def __hash__(self) -> int:
+
+        hash_keys = ["spec_type_name", "security_code", "security_type"]
+
+        attrs_hash = map(hash, hash_keys)
+
+        return functools.reduce(operator.xor, attrs_hash, 0)
+
+
+class ServiceKey(BaseSpec):
+
+    service_type: str
+    service_name: str
+
+    params: AttributeProtocol | None = None
+    # params: BaseSpec | None = None
+
+    # users want to be able to specify a service key with a dict
+    # but we want the data to conform to AttributeProtocol, how?
+
+
+    '''
+    example:
+    some_serive_or_manager.subscribe(
+    ServiceKey({service_type: Callable, listner: self.listen_quote}),
+    event_spec=QuoteEventSpec(**{
+        spec_name: quote,
+        security_code: amazon
+    })
+    )
+
+    '''

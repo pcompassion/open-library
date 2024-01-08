@@ -1,37 +1,34 @@
 #!/usr/bin/env python3
 
 
+from open_library.observe.listener_spec import ListenerSpec
+from open_investing.event_spec.event_spec import EventSpec
 import asyncio
+
+from open_library.observe.subscription_manager import SubscriptionManager
 
 
 class PubsubBroker:
     def __init__(self):
-        self.subscribers: dict[str, set] = {}
+        self.subscription_manager = SubscriptionManager()
+
         self.queue = asyncio.Queue()
         self.running = False
 
-    def subscribe(self, key: str, listener):
-        if key not in self.subscribers:
-            self.subscribers[key] = set()
-        self.subscribers[key].add(listener)
+    def subscribe(self, event_spec: EventSpec, listener_spec: ListenerSpec):
+        self.subscription_manager.subscribe(event_spec, listener_spec)
 
-    def unsubscribe(self, key: str, listener):
-        if key in self.subscribers:
-            self.subscribers[key].remove(listener)
+    def unsubscribe(self, event_spec: EventSpec, listener_spec: ListenerSpec):
+        self.subscription_manager.unsubscribe(event_spec, listener_spec)
 
     async def start_processing(self):
         self.running = True
         while self.running:
-            key, message = await self.queue.get()
-            await self.publish(key, message)
+            event_spec = await self.queue.get()
+            await self.subscription_manager.publish(message)
 
     def stop_processing(self):
         self.running = False
 
-    async def enqueue_message(self, key: str, message):
-        await self.queue.put((key, message))
-
-    async def publish(self, key: str, message):
-        if key in self.subscribers:
-            for listener in self.subscribers[key]:
-                asyncio.create_task(listener(message))
+    async def enqueue_message(self, message: dict):
+        await self.queue.put(message)

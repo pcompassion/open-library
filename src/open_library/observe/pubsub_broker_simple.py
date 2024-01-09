@@ -9,6 +9,7 @@ class PubsubBroker:
         self.subscribers: dict[str, set] = {}
         self.queue = asyncio.Queue()
         self.running = False
+        self.running_tasks = set()
 
     def subscribe(self, key: str, listener):
         if key not in self.subscribers:
@@ -34,4 +35,7 @@ class PubsubBroker:
     async def publish(self, key: str, message):
         if key in self.subscribers:
             for listener in self.subscribers[key]:
-                asyncio.create_task(listener(message))
+                task = asyncio.create_task(listener(message))
+
+                self.running_tasks.add(task)
+                task.add_done_callback(lambda t: self.running_tasks.remove(t))

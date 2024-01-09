@@ -11,6 +11,7 @@ class SubscriptionManager:
     def __init__(self):
         self.attribute_trie = AttributeTrie()
         self.listeners = defaultdict(list)
+        self.running_tasks = set()
 
     def subscribe(self, event_spec: AttributeProtocol, listener_spec: ListenerSpec):
         self.attribute_trie.insert(event_spec)
@@ -32,11 +33,14 @@ class SubscriptionManager:
 
                 listener_params = listener_spec.listener_params or {}
                 if not message_param_name:
-                    asyncio.create_task(listener(event))
+                    task = asyncio.create_task(listener(event))
                 else:
-                    asyncio.create_task(
+                    task = asyncio.create_task(
                         listener(**listener_params, message_param_name=event)
                     )
+
+                self.running_tasks.add(task)
+                task.add_done_callback(lambda t: self.running_tasks.remove(t))
 
     async def publish(self, message: dict):
         """

@@ -40,7 +40,9 @@ class TimeDataTracker:
 
     async def wait_for_valid_data(self):
         try:
-            await asyncio.wait_for(self.get_recent_data(), timeout=self.timeout_seconds)
+            return await asyncio.wait_for(
+                self.get_recent_data(), timeout=self.timeout_seconds
+            )
         except asyncio.TimeoutError:
             raise TimeoutError("Timed out waiting for valid data")
 

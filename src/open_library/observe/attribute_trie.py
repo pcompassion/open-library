@@ -23,15 +23,16 @@ class AttributeTrie:
         self.attr_counts[key] = AttributeCount(data, attr_count)
 
     def _insert(self, data: AttributeProtocol, node: dict, key: int, remove=False):
-        for attr_name in data.attr_names():
-            if attr_name in node:
-                node = node[attr_name]
-            else:
-                node[attr_name] = defaultdict(dict)
-                node = node[attr_name]
+        if hasattr(data, "attr_names"):
+            for attr_name in data.attr_names():
+                if attr_name in node:
+                    node = node[attr_name]
+                else:
+                    node[attr_name] = defaultdict(dict)
+                    node = node[attr_name]
 
-            attr_value = data.attr_value(attr_name)
-            self._insert(attr_value, node, key)
+                attr_value = data.attr_value(attr_name)
+                self._insert(attr_value, node, key)
 
         if "@" not in node:
             node["@"] = set()
@@ -45,7 +46,7 @@ class AttributeTrie:
         key = hash(data)
 
         self._insert(data, self.root, key, remove=True)
-        del self.attrs_count[key]
+        del self.attr_counts[key]
 
     def search(self, data: AttributeProtocol) -> list[AttributeProtocol]:
         key = hash(data)

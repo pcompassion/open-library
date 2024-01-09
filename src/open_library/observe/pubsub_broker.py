@@ -24,7 +24,7 @@ class PubsubBroker:
     async def start_processing(self):
         self.running = True
         while self.running:
-            event_spec = await self.queue.get()
+            message = await self.queue.get()
             await self.subscription_manager.publish(message)
 
     def stop_processing(self):

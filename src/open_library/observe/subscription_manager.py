@@ -44,6 +44,6 @@ class SubscriptionManager:
         Finds all matching event specs and notifies the corresponding listeners.
         """
 
-        event: AttributeProtocol = message["event"]
-        matching_event_specs = self.attribute_trie.search(event)
+        event_spec: AttributeProtocol = message["event_spec"]
+        matching_event_specs = self.attribute_trie.search(event_spec)
         await self.notify_listeners(matching_event_specs, message)

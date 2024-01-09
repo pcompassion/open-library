@@ -10,7 +10,7 @@ class AttributeProtocol(Protocol):
     def attr_names(self) -> list[str]:
         ...
 
-    def attr_value(self, attr_name: str) -> AttributeProtocol:
+    def attr_value(self, attr_name: str) -> "AttributeProtocol":
         ...
 
     def __hash__(self) -> int:
@@ -19,7 +19,7 @@ class AttributeProtocol(Protocol):
     def attr_count(self) -> int:
         ...
 
-    def from_dict(cls, data: dict) -> AttributeProtocol:
+    def from_dict(cls, data: dict) -> "AttributeProtocol":
         ...
 
 
@@ -41,7 +41,9 @@ class BaseSpec(BaseModel):
         return len(self.attr_names())
 
     def __hash__(self) -> int:
-        hash_keys = self.hash_keys
+        hash_keys = self.hash_keys or []
+        if not hash_keys:
+            pass
         values_to_hash = (getattr(self, key) for key in hash_keys)
 
         attrs_hash = map(hash, values_to_hash)

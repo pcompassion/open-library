@@ -160,6 +160,7 @@ class ApiResponse:
         self,
         success,
         raw_data,
+        exchange_api_code,
         data_field_name=None,
         error_code=None,
         default_data_type=list,
@@ -169,6 +170,7 @@ class ApiResponse:
         self.data_field_name = data_field_name
         self.error_code = error_code
         self.default_data_type = default_data_type
+        self.exchange_api_code = exchange_api_code
 
     @property
     def data(self):

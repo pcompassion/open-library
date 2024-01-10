@@ -20,7 +20,7 @@ LOGGING_CONFIG = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "{levelname:8s} {asctime} [{filename}:{lineno:04d}] {message}",
+            "format": "{levelname:8s} {asctime} [{pathname}:{lineno:04d}] {message}",
             "style": "{",
             "datefmt": "%Y-%m-%d:%H:%M:%S",
         },

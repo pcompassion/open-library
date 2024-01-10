@@ -12,11 +12,10 @@ class TimedData:
 
 
 class TimeDataTracker:
-    def __init__(self, time_window_seconds, timeout_seconds):
+    def __init__(self, time_window_seconds):
         self.data = []
         self.time_window = timedelta(seconds=time_window_seconds)
         self.new_data_event = asyncio.Event()
-        self.timeout_seconds = timeout_seconds
 
     async def add_data(self, data_item, timestamp=None):
         if timestamp is None:
@@ -38,10 +37,10 @@ class TimeDataTracker:
         current_time = now_local()
         return current_time - recent_data <= self.time_window
 
-    async def wait_for_valid_data(self):
+    async def wait_for_valid_data(self, timeout_seconds=30):
         try:
             return await asyncio.wait_for(
-                self.get_recent_data(), timeout=self.timeout_seconds
+                self.get_recent_data(), timeout=timeout_seconds
             )
         except asyncio.TimeoutError:
             raise TimeoutError("Timed out waiting for valid data")
@@ -63,7 +62,7 @@ async def process_data(data_tracker):
 
 
 async def main():
-    data_tracker = TimedDataTracker(time_window_seconds=60, timeout_seconds=30)
+    data_tracker = TimedDataTracker(time_window_seconds=60)
     await asyncio.gather(add_data(data_tracker), process_data(data_tracker))
 
 

@@ -51,6 +51,7 @@ class WebSocketClient:
         self.token_manager = token_manager
         self.subscriptions = {}
         self.topic_extractor = topic_extractor  # Function to extract topic from message
+        self.receive_task = None
 
     async def _connect(self):
         while self.retry_count != self.max_retries:
@@ -90,6 +91,8 @@ class WebSocketClient:
         header: dict[str, str] | None = None,
         body: dict[str, str] | None = None,
     ):
+        if self.receive_task is None:
+            self.receive_task = asyncio.create_task(self.receive())
         # If the topic doesn't exist, create a list for handlers
         if topic_key not in self.subscriptions:
             self.subscriptions[topic_key] = []

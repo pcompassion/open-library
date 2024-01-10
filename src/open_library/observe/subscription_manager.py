@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 
+from open_library.observe.const import ListenerType
+from typing import Callable
 import asyncio
 from collections import defaultdict
 from open_library.observe.attribute_trie import AttributeTrie, AttributeProtocol
@@ -13,11 +15,29 @@ class SubscriptionManager:
         self.listeners = defaultdict(list)
         self.running_tasks = set()
 
-    def subscribe(self, event_spec: AttributeProtocol, listener_spec: ListenerSpec):
+    def subscribe(
+        self, event_spec: AttributeProtocol, listener_spec: ListenerSpec | Callable
+    ):
+        if isinstance(listener_spec, Callable):
+            listener = listener_spec
+            listener_spec = ListenerSpec(
+                listener_type=ListenerType.Callable,
+                listener_or_name=listener,
+            )
+
         self.attribute_trie.insert(event_spec)
         self.listeners[hash(event_spec)].append(listener_spec)
 
-    def unsubscribe(self, event_spec: AttributeProtocol, listener_spec: ListenerSpec):
+    def unsubscribe(
+        self, event_spec: AttributeProtocol, listener_spec: ListenerSpec | Callable
+    ):
+        if isinstance(listener_spec, Callable):
+            listener = listener_spec
+            listener_spec = ListenerSpec(
+                listener_type=ListenerType.Callable,
+                listener_or_name=listener,
+            )
+
         self.attribute_trie.remove(event_spec)
         self.listeners[hash(event_spec)].remove(listener_spec)
 

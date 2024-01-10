@@ -19,37 +19,11 @@ class PubsubBroker:
         self.queue = asyncio.Queue()
         self.running = False
 
-    @singledispatchmethod
-    def subscribe(self, event_spec, listener_spec):
-        raise NotImplementedError
+    def subscribe(self, event_spec: EventSpec, listener_spec: ListenerSpec):
+        self.subscription_manager.subscribe(event_spec, listener_spec)
 
-    @subscribe.register
-    async def _(self, task_spec: EventSpec, listener_spec: Callable):
-        listener_spec_ = ListenerSpec(
-            listener_type=ListenerType.Callable,
-            listener_or_name=listener_spec,
-        )
-        return await self.subscribe(task_spec, listener_spec_)
-
-    @subscribe.register
-    async def _(self, task_spec: EventSpec, listener_spec: ListenerSpec):
-        self.subscription_manager.subscribe(task_spec, listener_spec)
-
-    @singledispatchmethod
-    def unsubscribe(self, task_spec, listener_spec):
-        raise NotImplementedError
-
-    @unsubscribe.register
-    async def _(self, task_spec: EventSpec, listener_spec: Callable):
-        listener_spec_ = ListenerSpec(
-            listener_type=ListenerType.Callable,
-            listener_or_name=listener,
-        )
-        return await self.unsubscribe(task_spec, listener_spec_)
-
-    @unsubscribe.register
-    async def _(self, task_spec: EventSpec, listener_spec: ListenerSpec):
-        self.subscription_manager.unsubscribe(task_spec, listener_spec)
+    def unsubscribe(self, event_spec: EventSpec, listener_spec: ListenerSpec):
+        self.subscription_manager.unsubscribe(event_spec, listener_spec)
 
     async def run(self):
         self.running = True

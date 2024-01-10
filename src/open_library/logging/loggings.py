@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import datetime
 
 from open_library.logging.logging_filter import IntervalLoggingFilter
+from open_library.logging.formatter import CustomFormatter
 
 LOG_FILE_NAME = "app.log"
 LOG_ERROR_FILE_NAME = "app-error.log"
@@ -82,11 +83,19 @@ LOGGING_CONFIG = {
 def setup_logging(log_dir_path, log_to_file=True, app_name="app", tz=None):
     log_dir_path = log_dir_path or Path(".")
 
-    class TimeFormatter(logging.Formatter):
+    class CustomVerboseFormatter(CustomFormatter):
         converter = lambda *args: datetime.now(tz).timetuple()
 
-    if tz:
-        LOGGING_CONFIG["formatters"]["verbose"]["()"] = TimeFormatter
+        def __init__(self, fmt=None, datefmt=None, style="{", max_dirs=3, tz=None):
+            super().__init__(
+                fmt=fmt,
+                datefmt=datefmt,
+                style=style,
+                max_dirs=max_dirs,
+                tz=tz,
+            )
+
+    LOGGING_CONFIG["formatters"]["verbose"]["()"] = CustomVerboseFormatter
 
     print("logging directory", str(log_dir_path))
     log_dir_path.mkdir(parents=True, exist_ok=True)

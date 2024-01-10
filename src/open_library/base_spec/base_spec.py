@@ -42,8 +42,6 @@ class BaseSpec(BaseModel):
 
     def __hash__(self) -> int:
         hash_keys = self.hash_keys or []
-        if not hash_keys:
-            pass
         values_to_hash = (getattr(self, key) for key in hash_keys)
 
         attrs_hash = map(hash, values_to_hash)

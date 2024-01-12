@@ -97,7 +97,6 @@ def setup_logging(log_dir_path, log_to_file=True, app_name="app", tz=None):
 
     LOGGING_CONFIG["formatters"]["verbose"]["()"] = CustomVerboseFormatter
 
-    print("logging directory", str(log_dir_path))
     log_dir_path.mkdir(parents=True, exist_ok=True)
 
     log_file_name = F_LOG_FILE_NAME.format(app_name=app_name)

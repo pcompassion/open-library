@@ -17,9 +17,9 @@ class AttributeTrie:
         self.attr_counts = {}
 
     def insert(self, data: AttributeProtocol):
-        # key = hash(data)
-        key = data
-        key = data.spec_type_name
+        key = hash(data)
+        # key = data
+        # key = data.spec_type_name
         self._insert(data, self.root, key)
         attr_count = data.attr_count()
         self.attr_counts[key] = AttributeCount(data, attr_count)
@@ -52,16 +52,16 @@ class AttributeTrie:
                 node_next["@"].add(key)
 
     def remove(self, data: AttributeProtocol):
-        # key = hash(data)
-        key = data
+        key = hash(data)
+        # key = data
 
         self._insert(data, self.root, key, remove=True)
         del self.attr_counts[key]
 
     def search(self, data: AttributeProtocol) -> list[AttributeProtocol]:
-        # key = hash(data)
-        key = data
-        key = data.spec_type_name
+        key = hash(data)
+        # key = data
+        # key = data.spec_type_name
 
         found_dict = defaultdict(int)
         search_result = []

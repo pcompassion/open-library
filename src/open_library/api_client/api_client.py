@@ -107,7 +107,7 @@ class ApiClient:
         min_interval_sec: float = 0.5,
         should_refresh_token_func: Callable[[httpx.Response], bool] | None = None,
     ):
-        self.client = httpx.AsyncClient(verify=False)
+        self.client = httpx.AsyncClient(verify=False, timeout=10)
         self.token_manager = TokenManager(
             self.client, token_url, client_id, client_secret
         )
@@ -160,6 +160,7 @@ class ApiResponse:
         self,
         success,
         raw_data,
+        headers,
         exchange_api_code,
         data_field_name=None,
         error_code=None,
@@ -167,6 +168,7 @@ class ApiResponse:
     ):
         self.success = success
         self.raw_data = raw_data
+        self.headers = headers
         self.data_field_name = data_field_name
         self.error_code = error_code
         self.default_data_type = default_data_type

@@ -84,7 +84,7 @@ class AttributeTrie:
                 if attr_name in node:
                     node_next = node[attr_name]
                 else:
-                    return
+                    continue
 
                 attr_value = data.attr_value(attr_name)
                 self._search(attr_value, node_next, key, found_dict, search_result)

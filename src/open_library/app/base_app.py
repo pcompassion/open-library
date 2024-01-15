@@ -19,6 +19,3 @@ class BaseApp:
         setup_logging(
             log_dir_path, log_to_file=log_to_file, app_name=self.name, tz=local_timezone
         )
-
-    def now(self):
-        return pendulum.now()

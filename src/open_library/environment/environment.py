@@ -17,7 +17,7 @@ class Environment:
 
         base_dir = Path(self.directory or self.cur_directory).resolve()
 
-        dotenv_path = base_dir / env_file
+        self.dotenv_path = dotenv_path = base_dir / env_file
         load_dotenv(dotenv_path)
 
         self.env = Env(os.getenv("ENV"))

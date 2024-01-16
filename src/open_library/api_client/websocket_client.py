@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from dataclasses import dataclass
 import json
 import asyncio
 
@@ -30,6 +31,13 @@ class NoPingPongFilter(logging.Filter):
 
 ws_filter = WebsocketLoggingFilter(60)  # Log once every 60 seconds
 ws_logger.addFilter(ws_filter)
+
+
+@dataclass
+class SubscriptionData:
+    handler: callable
+    header: dict[str, str]
+    body: dict[str, str]
 
 
 class WebSocketClient:
@@ -88,8 +96,8 @@ class WebSocketClient:
         self,
         topic_key,
         handler: Callable,
-        header: dict[str, str] | None = None,
-        body: dict[str, str] | None = None,
+        header: dict[str, str],
+        body: dict[str, str],
     ):
         if self.receive_task is None:
             self.receive_task = asyncio.create_task(self.receive())
@@ -97,13 +105,22 @@ class WebSocketClient:
         if topic_key not in self.subscriptions:
             self.subscriptions[topic_key] = []
 
+        subscription_data = SubscriptionData(handler, header, body)
         # Add the handler to the list of handlers for this topic
-        if handler not in self.subscriptions[topic_key]:
-            self.subscriptions[topic_key].append(handler)
+        if not any(sub.handler is handler for sub in self.subscriptions[topic_key]):
+            self.subscriptions[topic_key].append(subscription_data)
 
         # Start the receive loop if not already running for this topic
         if len(self.subscriptions[topic_key]) == 1:
             # Send a message to subscribe to the topic
+            await self.send(header, body)
+
+    async def resubsribe(self):
+        for topic_key, subscription_datas in self.subscriptions.items():
+            subscription_data = subscription_datas[0]
+            header = subscription_data.header
+            body = subscription_data.body
+
             await self.send(header, body)
 
     async def unsubscribe(
@@ -115,10 +132,11 @@ class WebSocketClient:
     ):
         # Remove the handler from the list of handlers for this topic
         if topic_key in self.subscriptions:
-            try:
-                self.subscriptions[topic_key].remove(handler)
-            except ValueError:
-                logger.info("Handler not found in the subscription list")
+            self.subscriptions[topic_key] = [
+                sub
+                for sub in self.subscriptions[topic_key]
+                if sub.handler is not handler
+            ]
 
             # If there are no more handlers, cancel the receive task
             if not self.subscriptions[topic_key]:
@@ -132,16 +150,18 @@ class WebSocketClient:
 
                 try:
                     message = await self.websocket.recv()
-                    logging.info(f"Message received: {message}")
+                    # logging.info(f"Message received: {message}")
 
                     response = json.loads(message)
                     topic_key = self.topic_extractor(response)
-                    handlers = self.subscriptions.get(topic_key, [])
-                    for handler in handlers:
+                    subscription_datas = self.subscriptions.get(topic_key, [])
+                    for subscription_data in subscription_datas:
+                        handler = subscription_data.handler
                         await handler(response)
                 except (websockets.ConnectionClosed, websockets.ConnectionClosedError):
                     logger.info("Connection closed, calling _connect")
                     await self._connect()
+                    await self.resubsribe()
                 except Exception as e:
                     logger.exception(f"An error occurred in receive: {e}")
 
@@ -149,11 +169,12 @@ class WebSocketClient:
             logger.info("receive got CancelledError")
         except Exception as e:
             logger.exception(f"An unexpected error occurred in receive: {e}")
+        finally:
+            self.receive_task = None
 
     async def close(self):
-        topic_keys = list(self.subscriptions.keys())
+        # TODO: maybe send close event to handlers
 
-        for topic_key in topic_keys:
-            await self.unsubscribe(topic_key)
+        self.subscriptions = {}
         if self.websocket and self.websocket.open:
             await self.websocket.close()

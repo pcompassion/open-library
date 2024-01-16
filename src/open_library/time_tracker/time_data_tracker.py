@@ -12,6 +12,8 @@ class TimedData:
 
 
 class TimeDataTracker:
+    max_data_length = 10
+
     def __init__(self, time_window_seconds):
         self.data = []
         self.time_window = timedelta(seconds=time_window_seconds)
@@ -22,6 +24,7 @@ class TimeDataTracker:
             timestamp = now_local()
         timed_data = TimedData(data=data_item, timestamp=timestamp)
         self.data.append(timed_data)
+        self.data = self.data[-self.max_data_length :]
         self.new_data_event.set()
         self.new_data_event.clear()
 

@@ -18,12 +18,16 @@ class PubsubBroker:
 
         self.queue = asyncio.Queue()
         self.running = False
+        self.run_task = None
 
     def subscribe(self, event_spec: EventSpec, listener_spec: ListenerSpec):
         self.subscription_manager.subscribe(event_spec, listener_spec)
 
     def unsubscribe(self, event_spec: EventSpec, listener_spec: ListenerSpec):
         self.subscription_manager.unsubscribe(event_spec, listener_spec)
+
+    def init(self):
+        self.run_task = asyncio.create_task(self.run())
 
     async def run(self):
         self.running = True

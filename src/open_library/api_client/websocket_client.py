@@ -12,7 +12,7 @@ from open_library.logging.logging_filter import WebsocketLoggingFilter
 
 ws_logger = logging.getLogger("websockets.client")
 logger = logging.getLogger(__name__)
-ws_logger.setLevel(logging.WARNING)
+# ws_logger.setLevel(logging.WARNING)
 
 
 class CustomWebSocketClient(websockets.WebSocketClientProtocol):
@@ -161,9 +161,15 @@ class WebSocketClient:
                     response = json.loads(message)
                     topic_key = self.topic_extractor(response)
                     subscription_datas = self.subscriptions.get(topic_key, [])
-                    for subscription_data in subscription_datas:
-                        handler = subscription_data.handler
-                        await handler(response)
+                    try:
+                        for subscription_data in subscription_datas:
+                            handler = subscription_data.handler
+                            await handler(response)
+                    except Exception as e:
+                        logger.exception(
+                            f"An error occurred in websocket handlinga: {e}"
+                        )
+
                 except websockets.ConnectionClosedError as e:
                     logger.warning(f"Connection closed error, calling _connect, {e}")
                     await self._connect()
@@ -172,9 +178,6 @@ class WebSocketClient:
                     logger.warning(f"Connection closed, calling _connect, {e}")
                     await self._connect()
                     await self.resubscribe()
-
-                except Exception as e:
-                    logger.exception(f"An error occurred in receive: {e}")
 
         except asyncio.CancelledError as e:
             logger.info("receive got CancelledError")

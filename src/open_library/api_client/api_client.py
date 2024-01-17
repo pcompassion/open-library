@@ -12,10 +12,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 httpx_logger = logging.getLogger("httpx")
-httpx_logger.setLevel(logging.WARNING)
+# httpx_logger.setLevel(logging.WARNING)
 
 httpcore_logger = logging.getLogger("httpcore")
-httpcore_logger.setLevel(logging.WARNING)
+# httpcore_logger.setLevel(logging.WARNING)
 
 
 class TokenManager:
@@ -143,6 +143,7 @@ class ApiClient:
                 self.should_refresh_token_func is not None
                 and self.should_refresh_token_func(response)
             ):
+                logger.warning(f"refreshing token, response: {response}")
                 access_token = await self.token_manager.get_access_token(
                     force_refresh=True
                 )

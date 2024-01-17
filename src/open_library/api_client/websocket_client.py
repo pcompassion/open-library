@@ -62,7 +62,11 @@ class WebSocketClient:
         self.receive_task = None
 
     async def _connect(self):
+        backoff = self.initial_delay
         while self.retry_count != self.max_retries:
+            logger.info(
+                f"_connect, retry_count: {self.retry_count}, backoff: {backoff}"
+            )
             try:
                 self.websocket = await websockets.connect(
                     self.uri, create_protocol=CustomWebSocketClient
@@ -88,6 +92,8 @@ class WebSocketClient:
         payload = {"header": header_updated, "body": body}
 
         if self.websocket is None or not self.websocket.open:
+            logger.warning(f"trying to send, but not connected calling _connect")
+
             await self._connect()
 
         await self.websocket.send(json.dumps(payload))

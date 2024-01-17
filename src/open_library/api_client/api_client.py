@@ -12,10 +12,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 httpx_logger = logging.getLogger("httpx")
-# httpx_logger.setLevel(logging.WARNING)
+httpx_logger.setLevel(logging.WARNING)
 
 httpcore_logger = logging.getLogger("httpcore")
-# httpcore_logger.setLevel(logging.WARNING)
+httpcore_logger.setLevel(logging.WARNING)
 
 
 class TokenManager:

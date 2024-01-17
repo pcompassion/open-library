@@ -46,9 +46,9 @@ class WebSocketClient:
         uri,
         token_manager,
         topic_extractor,
-        max_retries=-1,
+        max_retries=10,
         initial_delay=1,
-        max_delay=30,
+        max_delay=300,
     ):
         self.uri = uri
         self.websocket = None
@@ -115,7 +115,7 @@ class WebSocketClient:
             # Send a message to subscribe to the topic
             await self.send(header, body)
 
-    async def resubsribe(self):
+    async def resubscribe(self):
         for topic_key, subscription_datas in self.subscriptions.items():
             subscription_data = subscription_datas[0]
             header = subscription_data.header
@@ -158,10 +158,15 @@ class WebSocketClient:
                     for subscription_data in subscription_datas:
                         handler = subscription_data.handler
                         await handler(response)
-                except (websockets.ConnectionClosed, websockets.ConnectionClosedError):
-                    logger.info("Connection closed, calling _connect")
+                except websockets.ConnectionClosedError as e:
+                    logger.warning(f"Connection closed error, calling _connect, {e}")
                     await self._connect()
-                    await self.resubsribe()
+                    await self.resubscribe()
+                except websockets.ConnectionClosed as e:
+                    logger.warning(f"Connection closed, calling _connect, {e}")
+                    await self._connect()
+                    await self.resubscribe()
+
                 except Exception as e:
                     logger.exception(f"An error occurred in receive: {e}")
 

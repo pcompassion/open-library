@@ -12,7 +12,7 @@ from open_library.logging.logging_filter import WebsocketLoggingFilter
 
 ws_logger = logging.getLogger("websockets.client")
 logger = logging.getLogger(__name__)
-# ws_logger.setLevel(logging.WARNING)
+ws_logger.setLevel(logging.WARNING)
 
 
 class CustomWebSocketClient(websockets.WebSocketClientProtocol):
@@ -105,6 +105,7 @@ class WebSocketClient:
         header: dict[str, str],
         body: dict[str, str],
     ):
+        logger.info(f"subscribe, topic_key: {topic_key}")
         if self.receive_task is None:
             self.receive_task = asyncio.create_task(self.receive())
         # If the topic doesn't exist, create a list for handlers

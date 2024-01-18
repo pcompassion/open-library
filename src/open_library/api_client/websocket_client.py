@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import asyncio
 from dataclasses import dataclass
 import json
 import asyncio
@@ -11,8 +12,11 @@ from open_library.logging.logging_filter import WebsocketLoggingFilter
 
 
 ws_logger = logging.getLogger("websockets.client")
+ws_filter = WebsocketLoggingFilter(60)  # Log once every 60 seconds for ping pong
+ws_logger.addFilter(ws_filter)
+
 logger = logging.getLogger(__name__)
-ws_logger.setLevel(logging.WARNING)
+ws_logger.setLevel(logging.INFO)
 
 
 class CustomWebSocketClient(websockets.WebSocketClientProtocol):
@@ -27,10 +31,6 @@ class NoPingPongFilter(logging.Filter):
     def filter(self, record):
         # Filter out ping/pong log messages
         return not ("ping" in record.getMessage() or "pong" in record.getMessage())
-
-
-ws_filter = WebsocketLoggingFilter(60)  # Log once every 60 seconds
-ws_logger.addFilter(ws_filter)
 
 
 @dataclass
@@ -72,6 +72,8 @@ class WebSocketClient:
                     self.uri, create_protocol=CustomWebSocketClient
                 )
                 self.retry_count = 0  # reset retry count on successful connect
+                await self.resubscribe()
+
                 return
             except ConnectionRefusedError:
                 self.retry_count += 1
@@ -124,6 +126,8 @@ class WebSocketClient:
 
     async def resubscribe(self):
         for topic_key, subscription_datas in self.subscriptions.items():
+            logger.info(f"resubscribe, topic_key: {topic_key}")
+
             subscription_data = subscription_datas[0]
             header = subscription_data.header
             body = subscription_data.body
@@ -174,11 +178,9 @@ class WebSocketClient:
                 except websockets.ConnectionClosedError as e:
                     logger.warning(f"Connection closed error, calling _connect, {e}")
                     await self._connect()
-                    await self.resubscribe()
                 except websockets.ConnectionClosed as e:
                     logger.warning(f"Connection closed, calling _connect, {e}")
                     await self._connect()
-                    await self.resubscribe()
 
         except asyncio.CancelledError as e:
             logger.info("receive got CancelledError")

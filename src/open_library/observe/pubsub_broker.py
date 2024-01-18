@@ -10,6 +10,9 @@ from open_library.observe.const import ListenerType
 from open_library.observe.listener_spec import ListenerSpec
 
 from open_library.observe.subscription_manager import SubscriptionManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PubsubBroker:
@@ -32,8 +35,13 @@ class PubsubBroker:
     async def run(self):
         self.running = True
         while self.running:
-            message = await self.queue.get()
-            await self.subscription_manager.publish(message)
+            try:
+                message = await self.queue.get()
+                await self.subscription_manager.publish(message)
+                # rate limiting
+
+            except Exception as e:
+                logger.exception(f"broker run: {e}")
 
     def stop_processing(self):
         self.running = False

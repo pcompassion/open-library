@@ -48,11 +48,12 @@ class SubscriptionManager:
         for spec in matching_event_specs:
             for listener_spec in self.listeners[hash(spec)]:
                 listener_coro = listener_spec.get_listener_coroutine(message)
+                await listener_coro
 
-                task = asyncio.create_task(listener_coro)
+                # task = asyncio.create_task(listener_coro)
 
-                self.running_tasks.add(task)
-                task.add_done_callback(lambda t: self.running_tasks.remove(t))
+                # self.running_tasks.add(task)
+                # task.add_done_callback(lambda t: self.running_tasks.remove(t))
 
     async def publish(self, message):
         """

@@ -89,7 +89,7 @@ class AttributeTrie:
                 attr_value = data.attr_value(attr_name)
                 self._search(attr_value, node_next, key, found_dict, search_result)
         else:
-            attribute_count = self.attr_counts[key]
+            # attribute_count = self.attr_counts[key]
             if data not in node:
                 return
 
@@ -97,7 +97,8 @@ class AttributeTrie:
             if "@" in node_next:
                 for key_ in node_next["@"]:
                     found_dict[key_] += 1
+                    attribute_count = self.attr_counts[key_]
 
-                    if attribute_count.count == found_dict[key_]:
+                    if attribute_count.count <= found_dict[key_]:
                         found_data = attribute_count.data
                         search_result.append(found_data)

@@ -69,9 +69,9 @@ class TokenManager:
             logger.warning(f"no new token: {data}")
             raise Exception(f"no new token: {data}")
 
-        logger.info(
-            f"new_token: {new_token}, self: {id(self)}, client: {self.client_id}"
-        )
+        # logger.info(
+        #     f"new_token: {new_token}, self: {id(self)}, client: {self.client_id}"
+        # )
 
         if self.access_token != data["access_token"]:
             logger.info(f"I have renewed token: {self.access_token}, new: {new_token}")

@@ -168,7 +168,7 @@ class WebSocketClient:
                             await handler(response)
                     except Exception as e:
                         logger.exception(
-                            f"An error occurred in websocket handlinga: {e}"
+                            f"An error occurred in websocket handling: {e}"
                         )
 
                 except websockets.ConnectionClosedError as e:

@@ -28,7 +28,7 @@ class BaseSpec(BaseModel):
     spec_type_name: str = ""
 
     def attr_names(self) -> list[str]:
-        names = self.model_dump(exclude_unset=True).keys()
+        names = self.model_dump(exclude_none=True).keys()
         names = list(names)
         return names
 

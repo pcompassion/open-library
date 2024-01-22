@@ -27,7 +27,8 @@ class SubscriptionManager:
 
         self.attribute_trie.insert(event_spec)
         # self.listeners[hash(event_spec)].append(listener_spec)
-        self.listeners[event_spec].append(listener_spec)
+        if listener_spec not in self.listeners[event_spec]:
+            self.listeners[event_spec].append(listener_spec)
 
     def unsubscribe(
         self, event_spec: AttributeProtocol, listener_spec: ListenerSpec | Callable

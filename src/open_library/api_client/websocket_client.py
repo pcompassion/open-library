@@ -98,6 +98,8 @@ class WebSocketClient:
 
             await self._connect()
 
+        logger.info(f"websocket send, header: {header}, body: {body}")
+
         await self.websocket.send(json.dumps(payload))
 
     async def subscribe(
@@ -119,8 +121,7 @@ class WebSocketClient:
         if not any(sub.handler is handler for sub in self.subscriptions[topic_key]):
             self.subscriptions[topic_key].append(subscription_data)
 
-        # Start the receive loop if not already running for this topic
-        if len(self.subscriptions[topic_key]) == 1:
+        if True or len(self.subscriptions[topic_key]) == 1:
             # Send a message to subscribe to the topic
             await self.send(header, body)
 

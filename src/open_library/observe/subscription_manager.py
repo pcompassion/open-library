@@ -26,7 +26,8 @@ class SubscriptionManager:
             )
 
         self.attribute_trie.insert(event_spec)
-        self.listeners[hash(event_spec)].append(listener_spec)
+        # self.listeners[hash(event_spec)].append(listener_spec)
+        self.listeners[event_spec].append(listener_spec)
 
     def unsubscribe(
         self, event_spec: AttributeProtocol, listener_spec: ListenerSpec | Callable
@@ -39,14 +40,16 @@ class SubscriptionManager:
             )
 
         self.attribute_trie.remove(event_spec)
-        self.listeners[hash(event_spec)].remove(listener_spec)
+        # self.listeners[hash(event_spec)].remove(listener_spec)
+        self.listeners[event_spec].remove(listener_spec)
 
     async def notify_listeners(self, matching_event_specs, message):
         """
         Notify all listeners subscribed to the matching event specs.
         """
         for spec in matching_event_specs:
-            for listener_spec in self.listeners[hash(spec)]:
+            # for listener_spec in self.listeners[hash(spec)]:
+            for listener_spec in self.listeners[spec]:
                 listener_coro = listener_spec.get_listener_coroutine(message)
                 await listener_coro
 

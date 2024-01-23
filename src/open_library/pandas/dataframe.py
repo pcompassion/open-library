@@ -35,6 +35,19 @@ async def read_frame(
 
         async_values_list = sync_to_async(lambda: list(qs.values_list(*field_names)))
         records = await async_values_list()
+
+        # Add non-database field values to records
+        non_db_field_names = (
+            list(qs.model._non_database_fields.keys())
+            if hasattr(qs.model, "_non_database_fields")
+            else []
+        )
+
+        for record, obj in zip(records, qs):
+            for non_db_field in non_db_field_names:
+                value = getattr(obj, non_db_field)
+                record += (value,)
+
     elif isinstance(data, list):
         records = data
 

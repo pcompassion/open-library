@@ -28,9 +28,10 @@ async def read_frame(
     :return: DataFrame
     """
     records = []
+    field_names = field_names or []
     if isinstance(data, QuerySet[Any]):
         qs = data
-        if field_names is None:
+        if not field_names:
             field_names = [f.name for f in qs.model._meta.fields]
 
         async_values_list = sync_to_async(lambda: list(qs.values_list(*field_names)))

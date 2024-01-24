@@ -26,6 +26,34 @@ async def as_list_type(
     data_type: ListDataType,
     field_names: list | None = None,
 ):
+    field_names = field_names or []
+
+    field_names_updated = field_names[:]
+    additional_fields = {}
+
+    if isinstance(data, QuerySet) and hasattr(data.model, "_non_database_fields"):
+        if field_names:
+            for field_name, field in data.model._non_database_fields.items():
+                if field_name in field_names_updated:
+                    field_names_updated.remove(field_name)
+                    dependent_field_names = field.dependent_field_names
+                    field_names_updated += dependent_field_names
+                    additional_fields[field_name] = field
+        else:
+            for field_name, field in data.model._non_database_fields.items():
+                dependent_field_names = field.dependent_field_names
+                field_names_updated += dependent_field_names
+                additional_fields[field_name] = field
+
+    additional_field_names = list(additional_fields.keys())
+
+    def add_non_database_fields(row, fields):
+        result = []
+
+        for field_name, field in fields.items():
+            result.append(field.get(row))
+        return pd.Series(result)
+
     if isinstance(data, dict):
         for key, value in data.items():
             data[key] = await as_list_type(value, data_type, field_names)
@@ -36,11 +64,15 @@ async def as_list_type(
         assert isinstance(data, QuerySet[Any]), "data is not QuerySet"
         return data
     elif data_type == ListDataType.ListDict:
-        field_names = field_names or []
-
         if isinstance(data, QuerySet[Any]):
             qs = data
-            return await sync_to_async(qs.values)(*field_names)
+            df = await read_frame(data, field_names=field_names)
+            if additional_field_names:
+                df[additional_field_names] = df.apply(
+                    lambda x: add_non_database_fields(x, additional_fields), axis=1
+                )
+            return df.to_dict(orient="records")
+
         elif isinstance(data, pd.DataFrame):
             return data.to_dict(orient="records")
         elif isinstance(data, list):
@@ -49,7 +81,13 @@ async def as_list_type(
     elif data_type == ListDataType.Dataframe:
         if isinstance(data, pd.DataFrame):
             return data
-        return await read_frame(data, field_names=field_names)
+        df = await read_frame(data, field_names=field_names)
+        if additional_field_names:
+            df[additional_field_names] = df.apply(
+                lambda x: add_non_database_fields(x, additional_fields), axis=1
+            )
+        return df
+
     elif data_type == ListDataType.List:
         if isinstance(data, list):
             return data

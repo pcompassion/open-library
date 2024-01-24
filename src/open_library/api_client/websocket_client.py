@@ -7,6 +7,7 @@ import asyncio
 from typing import Any, Dict, Optional, Callable, Awaitable
 import logging
 import websockets
+from websockets.exceptions import ConnectionClosedOK
 
 from open_library.logging.logging_filter import WebsocketLoggingFilter
 
@@ -61,8 +62,23 @@ class WebSocketClient:
         self.topic_extractor = topic_extractor  # Function to extract topic from message
         self.receive_task = None
 
+        self.websockets = []
+        self.max_count = 10
+        self.closed_websockets = []
+        self.reconnect_delay = 1
+        self.max_reconnect_delay = 300
+
     async def _connect(self):
         backoff = self.initial_delay
+
+        if self.websocket is not None and not self.websocket.open:
+            logger.warning(f"trying to connect, but already connected")
+            return
+
+        if len(self.websockets) > self.max_count:
+            logger.warning(f"trying to connect, but too many connections")
+            return
+
         while self.retry_count != self.max_retries:
             logger.info(
                 f"_connect, retry_count: {self.retry_count}, backoff: {backoff}"
@@ -74,6 +90,8 @@ class WebSocketClient:
                 self.retry_count = 0  # reset retry count on successful connect
                 await self.resubscribe()
 
+                self.websockets.append(self.websocket)
+
                 return
             except ConnectionRefusedError:
                 self.retry_count += 1
@@ -83,6 +101,16 @@ class WebSocketClient:
                 await asyncio.sleep(backoff)
 
         raise ConnectionRefusedError("Maximum retry count reached")
+
+    async def _reconnect(self):
+        if self.websocket:
+            await self.websocket.close()
+            self.closed_websockets.append(self.websocket)
+
+        await asyncio.sleep(self.reconnect_delay)  # Delay in seconds
+
+        await self._connect()
+        self.reconnect_delay = min(self.reconnect_delay * 2, self.max_reconnect_delay)
 
     async def send(self, header, body):
         header = header or {}
@@ -100,7 +128,16 @@ class WebSocketClient:
 
         logger.info(f"websocket send, header: {header}, body: {body}")
 
-        await self.websocket.send(json.dumps(payload))
+        try:
+            await self.websocket.send(json.dumps(payload))
+        except websockets.ConnectionClosedOK:
+            logger.warning(f"ConnectionClosedOK")
+            await self._reconnect()
+        except websockets.ConnectionClosedError:
+            logger.warning(f"send ConnectionClosedError")
+            await self._reconnect()
+        except websockets.ConnectionClosed as e:
+            logger.warning(f"Connection closed, {e}")
 
     async def subscribe(
         self,
@@ -118,7 +155,7 @@ class WebSocketClient:
 
         subscription_data = SubscriptionData(handler, header, body)
         # Add the handler to the list of handlers for this topic
-        if not any(sub.handler is handler for sub in self.subscriptions[topic_key]):
+        if not any(sub.handler == handler for sub in self.subscriptions[topic_key]):
             self.subscriptions[topic_key].append(subscription_data)
 
         if True or len(self.subscriptions[topic_key]) == 1:
@@ -175,13 +212,15 @@ class WebSocketClient:
                         logger.exception(
                             f"An error occurred in websocket handling: {e}"
                         )
-
+                except ConnectionClosedOK:
+                    logger.warning(f"ConnectionClosedOK")
+                    await self._reconnect()
                 except websockets.ConnectionClosedError as e:
                     logger.warning(f"Connection closed error, calling _connect, {e}")
-                    await self._connect()
+                    await self._reconnect()
                 except websockets.ConnectionClosed as e:
                     logger.warning(f"Connection closed, calling _connect, {e}")
-                    await self._connect()
+                    await self._reconnect()
 
         except asyncio.CancelledError as e:
             logger.info("receive got CancelledError")

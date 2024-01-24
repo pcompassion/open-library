@@ -14,3 +14,8 @@ class DroppingQueue(asyncio.Queue):
             self.get_nowait()
         # Put the new item into the queue
         await super().put(item)
+
+
+async def call_function_after_delay(func, delay_seconds=3, *args, **kwargs):
+    await asyncio.sleep(delay_seconds)
+    await func(*args, **kwargs)

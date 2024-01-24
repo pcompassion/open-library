@@ -67,7 +67,7 @@ async def as_list_type(
         if isinstance(data, QuerySet[Any]):
             qs = data
             df = await read_frame(data, field_names=field_names)
-            if additional_field_names:
+            if additional_field_names and not df.empty:
                 df[additional_field_names] = df.apply(
                     lambda x: add_non_database_fields(x, additional_fields), axis=1
                 )
@@ -82,7 +82,7 @@ async def as_list_type(
         if isinstance(data, pd.DataFrame):
             return data
         df = await read_frame(data, field_names=field_names)
-        if additional_field_names:
+        if additional_field_names and not df.empty:
             df[additional_field_names] = df.apply(
                 lambda x: add_non_database_fields(x, additional_fields), axis=1
             )

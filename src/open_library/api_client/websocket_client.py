@@ -71,10 +71,13 @@ class WebSocketClient:
         self.max_reconnect_delay = 300
         self.last_connect_time = None
 
+    async def connect(self):
+        await self._connect()
+
     async def _connect(self):
         backoff = self.initial_delay
 
-        if self.websocket is not None and not self.websocket.open:
+        if self.websocket is not None and self.websocket.open:
             logger.warning(f"trying to connect, but already connected")
             return
 

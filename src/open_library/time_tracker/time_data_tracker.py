@@ -43,7 +43,7 @@ class TimeDataTracker:
             return True
         return current_time - recent_data <= self.time_window
 
-    async def wait_for_valid_data(self, timeout_seconds=3):
+    async def wait_for_valid_data(self, timeout_seconds=5):
         try:
             return await asyncio.wait_for(
                 self.get_recent_data(), timeout=timeout_seconds

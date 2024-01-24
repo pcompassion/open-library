@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import time
 import asyncio
 from dataclasses import dataclass
 import json
@@ -65,8 +66,10 @@ class WebSocketClient:
         self.websockets = []
         self.max_count = 10
         self.closed_websockets = []
+        self.initial_reconnect_delay = 1
         self.reconnect_delay = 1
         self.max_reconnect_delay = 300
+        self.last_connect_time = None
 
     async def _connect(self):
         backoff = self.initial_delay
@@ -92,6 +95,8 @@ class WebSocketClient:
 
                 self.websockets.append(self.websocket)
 
+                self.last_connect_time = time.monotonic()
+
                 return
             except ConnectionRefusedError:
                 self.retry_count += 1
@@ -106,11 +111,28 @@ class WebSocketClient:
         if self.websocket:
             await self.websocket.close()
             self.closed_websockets.append(self.websocket)
+            try:
+                self.websockets.remove(self.websocket)
+            except:
+                logger.warning("websockets remove fail")
 
-        await asyncio.sleep(self.reconnect_delay)  # Delay in seconds
+        if self.last_connect_time is None:
+            logger.warning(f"reconnect without first connecting")
+            return
 
+        time_since_last_reconnect = time.monotonic() - self.last_connect_time
+        if time_since_last_reconnect < self.reconnect_delay:
+            await asyncio.sleep(self.reconnect_delay - time_since_last_reconnect)
+
+        # Delay in seconds
         await self._connect()
-        self.reconnect_delay = min(self.reconnect_delay * 2, self.max_reconnect_delay)
+
+        if time_since_last_reconnect > self.reconnect_delay * 2:
+            self.reconnect_delay = self.initial_reconnect_delay
+        else:
+            self.reconnect_delay = min(
+                self.reconnect_delay * 2, self.max_reconnect_delay
+            )
 
     async def send(self, header, body):
         header = header or {}

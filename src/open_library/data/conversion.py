@@ -52,7 +52,7 @@ async def as_list_type(
 
         for field_name, field in fields.items():
             result.append(field.get(row))
-        return pd.Series(result)
+        return result
 
     if isinstance(data, dict):
         for key, value in data.items():
@@ -84,7 +84,8 @@ async def as_list_type(
         df = await read_frame(data, field_names=field_names)
         if additional_field_names and not df.empty:
             df[additional_field_names] = df.apply(
-                lambda x: add_non_database_fields(x, additional_fields), axis=1
+                lambda x: pd.Series(add_non_database_fields(x, additional_fields)),
+                axis=1,
             )
         return df
 

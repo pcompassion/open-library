@@ -169,6 +169,9 @@ class WebSocketClient:
         body: dict[str, str],
     ):
         logger.info(f"subscribe, topic_key: {topic_key}")
+        if self.websocket is None or not self.websocket.open:
+            await self._connect()
+
         if self.receive_task is None:
             self.receive_task = asyncio.create_task(self.receive())
         # If the topic doesn't exist, create a list for handlers

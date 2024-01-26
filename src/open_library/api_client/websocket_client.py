@@ -63,13 +63,14 @@ class WebSocketClient:
         self.topic_extractor = topic_extractor  # Function to extract topic from message
         self.receive_task = None
 
-        self.websockets = []
         self.max_count = 10
-        self.closed_websockets = []
         self.initial_reconnect_delay = 1
         self.reconnect_delay = 1
         self.max_reconnect_delay = 300
         self.last_connect_time = None
+        self.websocket_connect_count = 0
+        self.websocket_close_count = 0
+        self.websocket_open_count = 0
 
     async def connect(self):
         await self._connect()
@@ -81,7 +82,7 @@ class WebSocketClient:
             logger.warning(f"trying to connect, but already connected")
             return
 
-        if len(self.websockets) > self.max_count:
+        if self.websocket_connect_count > self.max_count:
             logger.warning(f"trying to connect, but too many connections")
             return
 
@@ -94,9 +95,9 @@ class WebSocketClient:
                     self.uri, create_protocol=CustomWebSocketClient
                 )
                 self.retry_count = 0  # reset retry count on successful connect
-                await self.resubscribe()
 
-                self.websockets.append(self.websocket)
+                self.websocket_connect_count += 1
+                self.websocket_open_count += 1
 
                 self.last_connect_time = time.monotonic()
 
@@ -111,13 +112,7 @@ class WebSocketClient:
         raise ConnectionRefusedError("Maximum retry count reached")
 
     async def _reconnect(self):
-        if self.websocket:
-            await self.websocket.close()
-            self.closed_websockets.append(self.websocket)
-            try:
-                self.websockets.remove(self.websocket)
-            except:
-                logger.warning("websockets remove fail")
+        await self.close_connection()
 
         if self.last_connect_time is None:
             logger.warning(f"reconnect without first connecting")
@@ -129,6 +124,7 @@ class WebSocketClient:
 
         # Delay in seconds
         await self._connect()
+        await self.resubscribe()
 
         if time_since_last_reconnect > self.reconnect_delay * 2:
             self.reconnect_delay = self.initial_reconnect_delay
@@ -136,6 +132,12 @@ class WebSocketClient:
             self.reconnect_delay = min(
                 self.reconnect_delay * 2, self.max_reconnect_delay
             )
+
+    async def close_connection(self):
+        if self.websocket:
+            await self.websocket.close()
+            self.websocket_close_count += 1
+            self.websocket_open_count -= 1
 
     async def send(self, header, body):
         header = header or {}

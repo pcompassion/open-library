@@ -45,11 +45,11 @@ def serialize(dictionary):
     return to_json(dictionary)
 
 
-def to_jsonable_python(dictionary):
+def to_jsonable_python(dictionary, excludes=None):
     # from pydantic.json_schema import to_jsonable_python
     from pydantic_core import to_jsonable_python
 
-    return to_jsonable_python(dictionary)
+    return to_jsonable_python(dictionary, exclude=excludes)
 
 
 def deserialize(json_str):

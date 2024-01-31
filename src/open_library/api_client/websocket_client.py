@@ -63,7 +63,7 @@ class WebSocketClient:
         self.topic_extractor = topic_extractor  # Function to extract topic from message
         self.receive_task = None
 
-        self.max_count = 10
+        self.max_open_count = 10
         self.initial_reconnect_delay = 1
         self.reconnect_delay = 1
         self.max_reconnect_delay = 300
@@ -73,18 +73,22 @@ class WebSocketClient:
         self.websocket_open_count = 0
 
     async def connect(self):
-        await self._connect()
+        try:
+            await self._connect()
+        except Exception as e:
+            logger.warning(f"connection failed")
+            return
 
     async def _connect(self):
         backoff = self.initial_delay
 
         if self.websocket is not None and self.websocket.open:
             logger.warning(f"trying to connect, but already connected")
-            return
+            raise ValueError("Already connected")
 
-        if self.websocket_connect_count > self.max_count:
+        if self.websocket_open_count > self.max_open_count:
             logger.warning(f"trying to connect, but too many connections")
-            return
+            raise ValueError("Too many connections")
 
         while self.retry_count != self.max_retries:
             logger.info(
@@ -100,7 +104,6 @@ class WebSocketClient:
                 self.websocket_open_count += 1
 
                 self.last_connect_time = time.monotonic()
-
                 return
             except ConnectionRefusedError:
                 self.retry_count += 1
@@ -123,15 +126,19 @@ class WebSocketClient:
             await asyncio.sleep(self.reconnect_delay - time_since_last_reconnect)
 
         # Delay in seconds
-        await self._connect()
-        await self.resubscribe()
+        try:
+            await self._connect()
+            await self.resubscribe()
 
-        if time_since_last_reconnect > self.reconnect_delay * 2:
-            self.reconnect_delay = self.initial_reconnect_delay
-        else:
-            self.reconnect_delay = min(
-                self.reconnect_delay * 2, self.max_reconnect_delay
-            )
+        except Exception as e:
+            logger.warning(f"connection failed")
+        finally:
+            if time_since_last_reconnect > self.reconnect_delay * 2:
+                self.reconnect_delay = self.initial_reconnect_delay
+            else:
+                self.reconnect_delay = min(
+                    self.reconnect_delay * 2, self.max_reconnect_delay
+                )
 
     async def close_connection(self):
         if self.websocket:
@@ -151,7 +158,10 @@ class WebSocketClient:
         if self.websocket is None or not self.websocket.open:
             logger.warning(f"trying to send, but not connected calling _connect")
 
-            await self._connect()
+            try:
+                await self._connect()
+            except Exception as e:
+                logger.warning(f"connection failed")
 
         logger.info(f"websocket send, header: {header}, body: {body}")
 
@@ -175,7 +185,11 @@ class WebSocketClient:
     ):
         logger.info(f"subscribe, topic_key: {topic_key}")
         if self.websocket is None or not self.websocket.open:
-            await self._connect()
+            try:
+                await self._connect()
+            except Exception as e:
+                logger.warning(f"connection failed")
+                return
 
         if self.receive_task is None:
             self.receive_task = asyncio.create_task(self.receive())
@@ -225,7 +239,11 @@ class WebSocketClient:
         try:
             while True:
                 if self.websocket is None or not self.websocket.open:
-                    await self._connect()
+                    try:
+                        await self._connect()
+                    except Exception as e:
+                        logger.warning(f"connection failed")
+                        return
 
                 try:
                     message = await self.websocket.recv()

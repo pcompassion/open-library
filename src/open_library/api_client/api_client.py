@@ -137,7 +137,7 @@ class ApiClient:
 
         # Reactive token refreshing
         if response.status_code != 200:
-            logger.warning(f"no good {response.status_code}")
+            logger.warning(f"no good {response.status_code}, {response.json()}")
 
             if (
                 self.should_refresh_token_func is not None

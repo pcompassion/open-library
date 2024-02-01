@@ -166,6 +166,7 @@ class ApiResponse:
         data_field_name=None,
         error_code=None,
         default_data_type=list,
+        is_recoverable=True,
     ):
         self.success = success
         self.raw_data = raw_data
@@ -174,7 +175,21 @@ class ApiResponse:
         self.error_code = error_code
         self.default_data_type = default_data_type
         self.exchange_api_code = exchange_api_code
+        self.is_recoverable = is_recoverable
 
     @property
     def data(self):
         return self.raw_data.get(self.data_field_name, self.default_data_type())
+
+    def to_dict(self, include_headers=False):
+        result = dict(
+            success=self.success,
+            raw_data=self.raw_data,
+            error_code=self.error_code,
+            exchange_api_code=self.exchange_api_code,
+            is_recoverable=self.is_recoverable,
+        )
+
+        if include_headers:
+            result["headers"] = self.headers
+        return result

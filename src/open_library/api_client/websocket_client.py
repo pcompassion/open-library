@@ -146,7 +146,7 @@ class WebSocketClient:
             self.websocket_close_count += 1
             self.websocket_open_count -= 1
 
-    async def send(self, header, body):
+    async def send(self, header, body, reconnect=True):
         header = header or {}
         body = body or {}
         access_token = await self.token_manager.get_access_token()
@@ -169,10 +169,13 @@ class WebSocketClient:
             await self.websocket.send(json.dumps(payload))
         except websockets.ConnectionClosedOK:
             logger.warning(f"ConnectionClosedOK")
-            await self._reconnect()
+            if reconnect:
+                await self._reconnect()
         except websockets.ConnectionClosedError:
             logger.warning(f"send ConnectionClosedError")
-            await self._reconnect()
+            if reconnect:
+                await self._reconnect()
+
         except websockets.ConnectionClosed as e:
             logger.warning(f"Connection closed, {e}")
 
@@ -214,7 +217,7 @@ class WebSocketClient:
             header = subscription_data.header
             body = subscription_data.body
 
-            await self.send(header, body)
+            await self.send(header, body, reconnect=False)
 
     async def unsubscribe(
         self,

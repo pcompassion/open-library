@@ -36,7 +36,7 @@ class AttributeTrie:
 
                 node_next = node[attr_name]
 
-                self._insert(attr_value, node_next, key)
+                self._insert(attr_value, node_next, key, remove=remove)
         else:
             if data not in node:
                 node[data] = {}
@@ -47,7 +47,8 @@ class AttributeTrie:
                 node_next["@"] = set()
 
             if remove:
-                node_next["@"].remove(key)
+                if key in node_next["@"]:
+                    node_next["@"].remove(key)
             else:
                 node_next["@"].add(key)
 
@@ -56,7 +57,8 @@ class AttributeTrie:
         # key = data
 
         self._insert(data, self.root, key, remove=True)
-        del self.attr_counts[key]
+        if key in self.attr_counts:
+            del self.attr_counts[key]
 
     def search(self, data: AttributeProtocol) -> list[AttributeProtocol]:
         key = hash(data)
@@ -97,7 +99,10 @@ class AttributeTrie:
             if "@" in node_next:
                 for key_ in node_next["@"]:
                     found_dict[key_] += 1
-                    attribute_count = self.attr_counts[key_]
+                    try:
+                        attribute_count = self.attr_counts[key_]
+                    except Exception as e:
+                        pass
 
                     if attribute_count.count <= found_dict[key_]:
                         found_data = attribute_count.data
